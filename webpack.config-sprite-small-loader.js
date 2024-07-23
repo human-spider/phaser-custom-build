@@ -53,7 +53,7 @@ module.exports = {
     plugins: [
         new webpack.DefinePlugin({
             "typeof CANVAS_RENDERER": JSON.stringify(true),
-            "typeof WEBGL_RENDERER": JSON.stringify(false),
+            "typeof WEBGL_RENDERER": JSON.stringify(true),
             "typeof WEBGL_DEBUG": JSON.stringify(false),
             "typeof EXPERIMENTAL": JSON.stringify(false),
             "typeof PLUGIN_3D": JSON.stringify(false),

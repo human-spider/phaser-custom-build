@@ -15639,23 +15639,28 @@ var CreateRenderer = function (game)
     var CanvasRenderer;
     var WebGLRenderer;
 
-    if (false)
-    {}
-
-    if (false)
-    {}
-
     if (true)
     {
         CanvasRenderer = __webpack_require__(65125);
+        WebGLRenderer = __webpack_require__(58410);
 
-        //  Force the type to Canvas, regardless what was requested
-        config.renderType = CONST.CANVAS;
-
-        game.renderer = new CanvasRenderer(game);
-
-        game.context = game.renderer.gameContext;
+        //  Let the config pick the renderer type, as both are included
+        if (config.renderType === CONST.WEBGL)
+        {
+            game.renderer = new WebGLRenderer(game);
+        }
+        else
+        {
+            game.renderer = new CanvasRenderer(game);
+            game.context = game.renderer.gameContext;
+        }
     }
+
+    if (false)
+    {}
+
+    if (false)
+    {}
 };
 
 module.exports = CreateRenderer;
@@ -39367,8 +39372,13 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(3484);
+
+    //  Needed for Graphics.generateTexture
+    renderCanvas = __webpack_require__(95930);
+}
 
 if (true)
 {
@@ -39381,6 +39391,362 @@ module.exports = {
     renderCanvas: renderCanvas
 
 };
+
+
+/***/ }),
+
+/***/ 3484:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var Commands = __webpack_require__(15972);
+var GetCalcMatrix = __webpack_require__(3142);
+var TransformMatrix = __webpack_require__(9329);
+var Utils = __webpack_require__(64564);
+
+var Point = function (x, y, width)
+{
+    this.x = x;
+    this.y = y;
+    this.width = width;
+};
+
+var Path = function (x, y, width)
+{
+    this.points = [];
+    this.pointsLength = 1;
+    this.points[0] = new Point(x, y, width);
+};
+
+var matrixStack = [];
+var tempMatrix = new TransformMatrix();
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Graphics#renderWebGL
+ * @since 3.0.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Graphics} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var GraphicsWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    if (src.commandBuffer.length === 0)
+    {
+        return;
+    }
+
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline, src);
+
+    renderer.pipelines.preBatch(src);
+
+    var calcMatrix = GetCalcMatrix(src, camera, parentMatrix).calc;
+
+    var currentMatrix = tempMatrix.loadIdentity();
+
+    var commands = src.commandBuffer;
+    var alpha = camera.alpha * src.alpha;
+
+    var lineWidth = 1;
+    var fillTint = pipeline.fillTint;
+    var strokeTint = pipeline.strokeTint;
+
+    var tx = 0;
+    var ty = 0;
+    var ta = 0;
+    var iterStep = 0.01;
+    var PI2 = Math.PI * 2;
+
+    var cmd;
+
+    var path = [];
+    var pathIndex = 0;
+    var pathOpen = true;
+    var lastPath = null;
+
+    var getTint = Utils.getTintAppendFloatAlpha;
+
+    for (var cmdIndex = 0; cmdIndex < commands.length; cmdIndex++)
+    {
+        cmd = commands[cmdIndex];
+
+        switch (cmd)
+        {
+            case Commands.BEGIN_PATH:
+            {
+                path.length = 0;
+                lastPath = null;
+                pathOpen = true;
+                break;
+            }
+
+            case Commands.CLOSE_PATH:
+            {
+                pathOpen = false;
+
+                if (lastPath && lastPath.points.length)
+                {
+                    lastPath.points.push(lastPath.points[0]);
+                }
+                break;
+            }
+
+            case Commands.FILL_PATH:
+            {
+                for (pathIndex = 0; pathIndex < path.length; pathIndex++)
+                {
+                    pipeline.batchFillPath(
+                        path[pathIndex].points,
+                        currentMatrix,
+                        calcMatrix
+                    );
+                }
+                break;
+            }
+
+            case Commands.STROKE_PATH:
+            {
+                for (pathIndex = 0; pathIndex < path.length; pathIndex++)
+                {
+                    pipeline.batchStrokePath(
+                        path[pathIndex].points,
+                        lineWidth,
+                        pathOpen,
+                        currentMatrix,
+                        calcMatrix
+                    );
+                }
+                break;
+            }
+
+            case Commands.LINE_STYLE:
+            {
+                lineWidth = commands[++cmdIndex];
+                var strokeColor = commands[++cmdIndex];
+                var strokeAlpha = commands[++cmdIndex] * alpha;
+                var strokeTintColor = getTint(strokeColor, strokeAlpha);
+                strokeTint.TL = strokeTintColor;
+                strokeTint.TR = strokeTintColor;
+                strokeTint.BL = strokeTintColor;
+                strokeTint.BR = strokeTintColor;
+                break;
+            }
+
+            case Commands.FILL_STYLE:
+            {
+                var fillColor = commands[++cmdIndex];
+                var fillAlpha = commands[++cmdIndex] * alpha;
+                var fillTintColor = getTint(fillColor, fillAlpha);
+                fillTint.TL = fillTintColor;
+                fillTint.TR = fillTintColor;
+                fillTint.BL = fillTintColor;
+                fillTint.BR = fillTintColor;
+                break;
+            }
+
+            case Commands.GRADIENT_FILL_STYLE:
+            {
+                var alphaTL = commands[++cmdIndex] * alpha;
+                var alphaTR = commands[++cmdIndex] * alpha;
+                var alphaBL = commands[++cmdIndex] * alpha;
+                var alphaBR = commands[++cmdIndex] * alpha;
+
+                fillTint.TL = getTint(commands[++cmdIndex], alphaTL);
+                fillTint.TR = getTint(commands[++cmdIndex], alphaTR);
+                fillTint.BL = getTint(commands[++cmdIndex], alphaBL);
+                fillTint.BR = getTint(commands[++cmdIndex], alphaBR);
+                break;
+            }
+
+            case Commands.GRADIENT_LINE_STYLE:
+            {
+                lineWidth = commands[++cmdIndex];
+                var gradientLineAlpha = commands[++cmdIndex] * alpha;
+                strokeTint.TL = getTint(commands[++cmdIndex], gradientLineAlpha);
+                strokeTint.TR = getTint(commands[++cmdIndex], gradientLineAlpha);
+                strokeTint.BL = getTint(commands[++cmdIndex], gradientLineAlpha);
+                strokeTint.BR = getTint(commands[++cmdIndex], gradientLineAlpha);
+                break;
+            }
+
+            case Commands.ARC:
+            {
+                var iteration = 0;
+                var x = commands[++cmdIndex];
+                var y = commands[++cmdIndex];
+                var radius = commands[++cmdIndex];
+                var startAngle = commands[++cmdIndex];
+                var endAngle = commands[++cmdIndex];
+                var anticlockwise = commands[++cmdIndex];
+                var overshoot = commands[++cmdIndex];
+
+                endAngle -= startAngle;
+
+                if (anticlockwise)
+                {
+                    if (endAngle < -PI2)
+                    {
+                        endAngle = -PI2;
+                    }
+                    else if (endAngle > 0)
+                    {
+                        endAngle = -PI2 + endAngle % PI2;
+                    }
+                }
+                else if (endAngle > PI2)
+                {
+                    endAngle = PI2;
+                }
+                else if (endAngle < 0)
+                {
+                    endAngle = PI2 + endAngle % PI2;
+                }
+
+                if (lastPath === null)
+                {
+                    lastPath = new Path(x + Math.cos(startAngle) * radius, y + Math.sin(startAngle) * radius, lineWidth);
+                    path.push(lastPath);
+                    iteration += iterStep;
+                }
+
+                while (iteration < 1 + overshoot)
+                {
+                    ta = endAngle * iteration + startAngle;
+                    tx = x + Math.cos(ta) * radius;
+                    ty = y + Math.sin(ta) * radius;
+
+                    lastPath.points.push(new Point(tx, ty, lineWidth));
+
+                    iteration += iterStep;
+                }
+
+                ta = endAngle + startAngle;
+                tx = x + Math.cos(ta) * radius;
+                ty = y + Math.sin(ta) * radius;
+
+                lastPath.points.push(new Point(tx, ty, lineWidth));
+
+                break;
+            }
+
+            case Commands.FILL_RECT:
+            {
+                pipeline.batchFillRect(
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    currentMatrix,
+                    calcMatrix
+                );
+                break;
+            }
+
+            case Commands.FILL_TRIANGLE:
+            {
+                pipeline.batchFillTriangle(
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    currentMatrix,
+                    calcMatrix
+                );
+                break;
+            }
+
+            case Commands.STROKE_TRIANGLE:
+            {
+                pipeline.batchStrokeTriangle(
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    commands[++cmdIndex],
+                    lineWidth,
+                    currentMatrix,
+                    calcMatrix
+                );
+                break;
+            }
+
+            case Commands.LINE_TO:
+            {
+                if (lastPath !== null)
+                {
+                    lastPath.points.push(new Point(commands[++cmdIndex], commands[++cmdIndex], lineWidth));
+                }
+                else
+                {
+                    lastPath = new Path(commands[++cmdIndex], commands[++cmdIndex], lineWidth);
+                    path.push(lastPath);
+                }
+                break;
+            }
+
+            case Commands.MOVE_TO:
+            {
+                lastPath = new Path(commands[++cmdIndex], commands[++cmdIndex], lineWidth);
+                path.push(lastPath);
+                break;
+            }
+
+            case Commands.SAVE:
+            {
+                matrixStack.push(currentMatrix.copyToArray());
+                break;
+            }
+
+            case Commands.RESTORE:
+            {
+                currentMatrix.copyFromArray(matrixStack.pop());
+                break;
+            }
+
+            case Commands.TRANSLATE:
+            {
+                x = commands[++cmdIndex];
+                y = commands[++cmdIndex];
+                currentMatrix.translate(x, y);
+                break;
+            }
+
+            case Commands.SCALE:
+            {
+                x = commands[++cmdIndex];
+                y = commands[++cmdIndex];
+                currentMatrix.scale(x, y);
+                break;
+            }
+
+            case Commands.ROTATE:
+            {
+                currentMatrix.rotate(commands[++cmdIndex]);
+                break;
+            }
+        }
+    }
+
+    renderer.pipelines.postBatch(src);
+};
+
+module.exports = GraphicsWebGLRenderer;
 
 
 /***/ }),
@@ -41452,8 +41818,10 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(84188);
+}
 
 if (true)
 {
@@ -41466,6 +41834,41 @@ module.exports = {
     renderCanvas: renderCanvas
 
 };
+
+
+/***/ }),
+
+/***/ 84188:
+/***/ ((module) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Image#renderWebGL
+ * @since 3.0.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Image} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var ImageWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    camera.addToRenderList(src);
+
+    this.pipeline.batchSprite(src, camera, parentMatrix);
+};
+
+module.exports = ImageWebGLRenderer;
 
 
 /***/ }),
@@ -42642,8 +43045,10 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(40349);
+}
 
 if (true)
 {
@@ -42656,6 +43061,130 @@ module.exports = {
     renderCanvas: renderCanvas
 
 };
+
+
+/***/ }),
+
+/***/ 40349:
+/***/ ((module) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Layer#renderWebGL
+ * @since 3.50.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Layer} layer - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ */
+var LayerWebGLRenderer = function (renderer, layer, camera)
+{
+    var children = layer.list;
+    var childCount = children.length;
+
+    if (childCount === 0)
+    {
+        return;
+    }
+
+    layer.depthSort();
+
+    renderer.pipelines.preBatch(layer);
+
+    var layerHasBlendMode = (layer.blendMode !== -1);
+
+    if (!layerHasBlendMode)
+    {
+        //  If Layer is SKIP_TEST then set blend mode to be Normal
+        renderer.setBlendMode(0);
+    }
+
+    var alpha = layer.alpha;
+
+    for (var i = 0; i < childCount; i++)
+    {
+        var child = children[i];
+
+        if (!child.willRender(camera))
+        {
+            continue;
+        }
+
+        var childAlphaTopLeft;
+        var childAlphaTopRight;
+        var childAlphaBottomLeft;
+        var childAlphaBottomRight;
+
+        if (child.alphaTopLeft !== undefined)
+        {
+            childAlphaTopLeft = child.alphaTopLeft;
+            childAlphaTopRight = child.alphaTopRight;
+            childAlphaBottomLeft = child.alphaBottomLeft;
+            childAlphaBottomRight = child.alphaBottomRight;
+        }
+        else
+        {
+            var childAlpha = child.alpha;
+
+            childAlphaTopLeft = childAlpha;
+            childAlphaTopRight = childAlpha;
+            childAlphaBottomLeft = childAlpha;
+            childAlphaBottomRight = childAlpha;
+        }
+
+        if (!layerHasBlendMode && child.blendMode !== renderer.currentBlendMode)
+        {
+            //  If Layer doesn't have its own blend mode, then a child can have one
+            renderer.setBlendMode(child.blendMode);
+        }
+
+        var mask = child.mask;
+
+        if (mask)
+        {
+            mask.preRenderWebGL(renderer, child, camera);
+        }
+
+        var type = child.type;
+
+        if (type !== renderer.currentType)
+        {
+            renderer.newType = true;
+            renderer.currentType = type;
+        }
+
+        renderer.nextTypeMatch = (i < childCount - 1) ? (children[i + 1].type === renderer.currentType) : false;
+
+        child.setAlpha(childAlphaTopLeft * alpha, childAlphaTopRight * alpha, childAlphaBottomLeft * alpha, childAlphaBottomRight * alpha);
+
+        //  Render
+        child.renderWebGL(renderer, child, camera);
+
+        //  Restore original values
+        child.setAlpha(childAlphaTopLeft, childAlphaTopRight, childAlphaBottomLeft, childAlphaBottomRight);
+
+        if (mask)
+        {
+            mask.postRenderWebGL(renderer, camera);
+        }
+
+        renderer.newType = false;
+    }
+
+    renderer.pipelines.postBatch(layer);
+};
+
+module.exports = LayerWebGLRenderer;
 
 
 /***/ }),
@@ -43164,6 +43693,80 @@ module.exports = Shape;
 
 /***/ }),
 
+/***/ 29980:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var Utils = __webpack_require__(64564);
+
+/**
+ * Renders a stroke outline around the given Shape.
+ *
+ * @method Phaser.GameObjects.Shape#StrokePathWebGL
+ * @since 3.13.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLPipeline} pipeline - The WebGL Pipeline used to render this Shape.
+ * @param {Phaser.GameObjects.Shape} src - The Game Object shape being rendered in this call.
+ * @param {number} alpha - The base alpha value.
+ * @param {number} dx - The source displayOriginX.
+ * @param {number} dy - The source displayOriginY.
+ */
+var StrokePathWebGL = function (pipeline, src, alpha, dx, dy)
+{
+    var strokeTint = pipeline.strokeTint;
+    var strokeTintColor = Utils.getTintAppendFloatAlpha(src.strokeColor, src.strokeAlpha * alpha);
+
+    strokeTint.TL = strokeTintColor;
+    strokeTint.TR = strokeTintColor;
+    strokeTint.BL = strokeTintColor;
+    strokeTint.BR = strokeTintColor;
+
+    var path = src.pathData;
+    var pathLength = path.length - 1;
+    var lineWidth = src.lineWidth;
+    var halfLineWidth = lineWidth / 2;
+
+    var px1 = path[0] - dx;
+    var py1 = path[1] - dy;
+
+    if (!src.closePath)
+    {
+        pathLength -= 2;
+    }
+
+    for (var i = 2; i < pathLength; i += 2)
+    {
+        var px2 = path[i] - dx;
+        var py2 = path[i + 1] - dy;
+
+        pipeline.batchLine(
+            px1,
+            py1,
+            px2,
+            py2,
+            halfLineWidth,
+            halfLineWidth,
+            lineWidth,
+            i - 2,
+            (src.closePath) ? (i === pathLength - 1) : false
+        );
+
+        px1 = px2;
+        py1 = py2;
+    }
+};
+
+module.exports = StrokePathWebGL;
+
+
+/***/ }),
+
 /***/ 41231:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -43448,8 +44051,10 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(68162);
+}
 
 if (true)
 {
@@ -43462,6 +44067,80 @@ module.exports = {
     renderCanvas: renderCanvas
 
 };
+
+
+/***/ }),
+
+/***/ 68162:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var GetCalcMatrix = __webpack_require__(3142);
+var StrokePathWebGL = __webpack_require__(29980);
+var Utils = __webpack_require__(64564);
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Rectangle#renderWebGL
+ * @since 3.13.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Rectangle} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var RectangleWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
+
+    var result = GetCalcMatrix(src, camera, parentMatrix);
+
+    pipeline.calcMatrix.copyFrom(result.calc);
+
+    var dx = src._displayOriginX;
+    var dy = src._displayOriginY;
+    var alpha = camera.alpha * src.alpha;
+
+    renderer.pipelines.preBatch(src);
+
+    if (src.isFilled)
+    {
+        var fillTint = pipeline.fillTint;
+        var fillTintColor = Utils.getTintAppendFloatAlpha(src.fillColor, src.fillAlpha * alpha);
+
+        fillTint.TL = fillTintColor;
+        fillTint.TR = fillTintColor;
+        fillTint.BL = fillTintColor;
+        fillTint.BR = fillTintColor;
+
+        pipeline.batchFillRect(
+            -dx,
+            -dy,
+            src.width,
+            src.height
+        );
+    }
+
+    if (src.isStroked)
+    {
+        StrokePathWebGL(pipeline, src, alpha, dx, dy);
+    }
+
+    renderer.pipelines.postBatch(src);
+};
+
+module.exports = RectangleWebGLRenderer;
 
 
 /***/ }),
@@ -44094,8 +44773,10 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(83803);
+}
 
 if (true)
 {
@@ -44108,6 +44789,41 @@ module.exports = {
     renderCanvas: renderCanvas
 
 };
+
+
+/***/ }),
+
+/***/ 83803:
+/***/ ((module) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Sprite#renderWebGL
+ * @since 3.0.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Sprite} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var SpriteWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    camera.addToRenderList(src);
+
+    src.pipeline.batchSprite(src, camera, parentMatrix);
+};
+
+module.exports = SpriteWebGLRenderer;
 
 
 /***/ }),
@@ -46015,8 +46731,10 @@ var NOOP = __webpack_require__(45733);
 var renderWebGL = NOOP;
 var renderCanvas = NOOP;
 
-if (false)
-{}
+if (true)
+{
+    renderWebGL = __webpack_require__(64651);
+}
 
 if (true)
 {
@@ -47136,6 +47854,78 @@ var TextStyle = new Class({
 });
 
 module.exports = TextStyle;
+
+
+/***/ }),
+
+/***/ 64651:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var Utils = __webpack_require__(64564);
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Text#renderWebGL
+ * @since 3.0.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Text} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var TextWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    if (src.width === 0 || src.height === 0)
+    {
+        return;
+    }
+
+    camera.addToRenderList(src);
+
+    var frame = src.frame;
+    var width = frame.width;
+    var height = frame.height;
+    var getTint = Utils.getTintAppendFloatAlpha;
+    var pipeline = renderer.pipelines.set(src.pipeline, src);
+
+    var textureUnit = pipeline.setTexture2D(frame.glTexture, src);
+
+    pipeline.batchTexture(
+        src,
+        frame.glTexture,
+        width, height,
+        src.x, src.y,
+        width / src.style.resolution, height / src.style.resolution,
+        src.scaleX, src.scaleY,
+        src.rotation,
+        src.flipX, src.flipY,
+        src.scrollFactorX, src.scrollFactorY,
+        src.displayOriginX, src.displayOriginY,
+        0, 0, width, height,
+        getTint(src.tintTopLeft, camera.alpha * src._alphaTL),
+        getTint(src.tintTopRight, camera.alpha * src._alphaTR),
+        getTint(src.tintBottomLeft, camera.alpha * src._alphaBL),
+        getTint(src.tintBottomRight, camera.alpha * src._alphaBR),
+        src.tintFill,
+        0, 0,
+        camera,
+        parentMatrix,
+        false,
+        textureUnit
+    );
+};
+
+module.exports = TextWebGLRenderer;
 
 
 /***/ }),
