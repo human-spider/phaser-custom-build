@@ -30,6 +30,7 @@ var Phaser = {
         GameObject: require('gameobjects/GameObject'),
         Graphics: require('gameobjects/graphics/Graphics'),
         Image: require('gameobjects/image/Image'),
+        Video: require('gameobjects/video/Video'),
         Layer: require('gameobjects/layer/Layer'),
         Sprite: require('gameobjects/sprite/Sprite'),
         Text: require('gameobjects/text/Text'),
