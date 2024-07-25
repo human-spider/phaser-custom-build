@@ -39,6 +39,7 @@ var Phaser = {
         Factories: {
             Graphics: require('gameobjects/graphics/GraphicsFactory'),
             Image: require('gameobjects/image/ImageFactory'),
+            Video: require('gameobjects/video/VideoFactory'),
             Layer: require('gameobjects/layer/LayerFactory'),
             Sprite: require('gameobjects/sprite/SpriteFactory'),
             Text: require('gameobjects/text/TextFactory'),
@@ -48,6 +49,7 @@ var Phaser = {
         Creators: {
             Graphics: require('gameobjects/graphics/GraphicsCreator'),
             Image: require('gameobjects/image/ImageCreator'),
+            Video: require('gameobjects/video/VideoCreator'),
             Layer: require('gameobjects/layer/LayerCreator'),
             Sprite: require('gameobjects/sprite/SpriteCreator'),
             Text: require('gameobjects/text/TextCreator'),
