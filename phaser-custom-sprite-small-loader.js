@@ -74,6 +74,7 @@ var Phaser = {
             // AudioSpriteFile: require('loader/filetypes/AudioSpriteFile'),
             // HTML5AudioFile: require('loader/filetypes/HTML5AudioFile'),
             ImageFile: require('loader/filetypes/ImageFile'),
+            VideoFile: require('loader/filetypes/VideoFile'),
             // JSONFile: require('loader/filetypes/JSONFile'),
             // MultiAtlasFile: require('loader/filetypes/MultiAtlasFile'),
             // PluginFile: require('loader/filetypes/PluginFile'),
