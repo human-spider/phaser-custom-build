@@ -43767,6 +43767,396 @@ module.exports = StrokePathWebGL;
 
 /***/ }),
 
+/***/ 9417:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var Class = __webpack_require__(69186);
+var Shape = __webpack_require__(56098);
+var GeomLine = __webpack_require__(97501);
+var LineRender = __webpack_require__(15091);
+
+/**
+ * @classdesc
+ * The Line Shape is a Game Object that can be added to a Scene, Group or Container. You can
+ * treat it like any other Game Object in your game, such as tweening it, scaling it, or enabling
+ * it for input or physics. It provides a quick and easy way for you to render this shape in your
+ * game without using a texture, while still taking advantage of being fully batched in WebGL.
+ *
+ * This shape supports only stroke colors and cannot be filled.
+ *
+ * A Line Shape allows you to draw a line between two points in your game. You can control the
+ * stroke color and thickness of the line. In WebGL only you can also specify a different
+ * thickness for the start and end of the line, allowing you to render lines that taper-off.
+ *
+ * If you need to draw multiple lines in a sequence you may wish to use the Polygon Shape instead.
+ *
+ * Be aware that as with all Game Objects the default origin is 0.5. If you need to draw a Line
+ * between two points and want the x1/y1 values to match the x/y values, then set the origin to 0.
+ *
+ * @class Line
+ * @extends Phaser.GameObjects.Shape
+ * @memberof Phaser.GameObjects
+ * @constructor
+ * @since 3.13.0
+ *
+ * @param {Phaser.Scene} scene - The Scene to which this Game Object belongs. A Game Object can only belong to one Scene at a time.
+ * @param {number} [x=0] - The horizontal position of this Game Object in the world.
+ * @param {number} [y=0] - The vertical position of this Game Object in the world.
+ * @param {number} [x1=0] - The horizontal position of the start of the line.
+ * @param {number} [y1=0] - The vertical position of the start of the line.
+ * @param {number} [x2=128] - The horizontal position of the end of the line.
+ * @param {number} [y2=0] - The vertical position of the end of the line.
+ * @param {number} [strokeColor] - The color the line will be drawn in, i.e. 0xff0000 for red.
+ * @param {number} [strokeAlpha] - The alpha the line will be drawn in. You can also set the alpha of the overall Shape using its `alpha` property.
+ */
+var Line = new Class({
+
+    Extends: Shape,
+
+    Mixins: [
+        LineRender
+    ],
+
+    initialize:
+
+    function Line (scene, x, y, x1, y1, x2, y2, strokeColor, strokeAlpha)
+    {
+        if (x === undefined) { x = 0; }
+        if (y === undefined) { y = 0; }
+        if (x1 === undefined) { x1 = 0; }
+        if (y1 === undefined) { y1 = 0; }
+        if (x2 === undefined) { x2 = 128; }
+        if (y2 === undefined) { y2 = 0; }
+
+        Shape.call(this, scene, 'Line', new GeomLine(x1, y1, x2, y2));
+
+        var width = Math.max(1, this.geom.right - this.geom.left);
+        var height = Math.max(1, this.geom.bottom - this.geom.top);
+
+        /**
+         * The width (or thickness) of the line.
+         * See the setLineWidth method for extra details on changing this on WebGL.
+         *
+         * @name Phaser.GameObjects.Line#lineWidth
+         * @type {number}
+         * @since 3.13.0
+         */
+        this.lineWidth = 1;
+
+        /**
+         * Private internal value. Holds the start width of the line.
+         *
+         * @name Phaser.GameObjects.Line#_startWidth
+         * @type {number}
+         * @private
+         * @since 3.13.0
+         */
+        this._startWidth = 1;
+
+        /**
+         * Private internal value. Holds the end width of the line.
+         *
+         * @name Phaser.GameObjects.Line#_endWidth
+         * @type {number}
+         * @private
+         * @since 3.13.0
+         */
+        this._endWidth = 1;
+
+        this.setPosition(x, y);
+        this.setSize(width, height);
+
+        if (strokeColor !== undefined)
+        {
+            this.setStrokeStyle(1, strokeColor, strokeAlpha);
+        }
+
+        this.updateDisplayOrigin();
+    },
+
+    /**
+     * Sets the width of the line.
+     *
+     * When using the WebGL renderer you can have different start and end widths.
+     * When using the Canvas renderer only the `startWidth` value is used. The `endWidth` is ignored.
+     *
+     * This call can be chained.
+     *
+     * @method Phaser.GameObjects.Line#setLineWidth
+     * @since 3.13.0
+     *
+     * @param {number} startWidth - The start width of the line.
+     * @param {number} [endWidth] - The end width of the line. Only used in WebGL.
+     *
+     * @return {this} This Game Object instance.
+     */
+    setLineWidth: function (startWidth, endWidth)
+    {
+        if (endWidth === undefined) { endWidth = startWidth; }
+
+        this._startWidth = startWidth;
+        this._endWidth = endWidth;
+
+        this.lineWidth = startWidth;
+
+        return this;
+    },
+
+    /**
+     * Sets the start and end coordinates of this Line.
+     *
+     * @method Phaser.GameObjects.Line#setTo
+     * @since 3.13.0
+     *
+     * @param {number} [x1=0] - The horizontal position of the start of the line.
+     * @param {number} [y1=0] - The vertical position of the start of the line.
+     * @param {number} [x2=0] - The horizontal position of the end of the line.
+     * @param {number} [y2=0] - The vertical position of the end of the line.
+     *
+     * @return {this} This Line object.
+     */
+    setTo: function (x1, y1, x2, y2)
+    {
+        this.geom.setTo(x1, y1, x2, y2);
+
+        return this;
+    }
+
+});
+
+module.exports = Line;
+
+
+/***/ }),
+
+/***/ 49506:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var LineStyleCanvas = __webpack_require__(54092);
+var SetTransform = __webpack_require__(14437);
+
+/**
+ * Renders this Game Object with the Canvas Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Line#renderCanvas
+ * @since 3.13.0
+ * @private
+ *
+ * @param {Phaser.Renderer.Canvas.CanvasRenderer} renderer - A reference to the current active Canvas renderer.
+ * @param {Phaser.GameObjects.Line} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var LineCanvasRenderer = function (renderer, src, camera, parentMatrix)
+{
+    camera.addToRenderList(src);
+
+    var ctx = renderer.currentContext;
+
+    if (SetTransform(renderer, ctx, src, camera, parentMatrix))
+    {
+        var dx = src._displayOriginX;
+        var dy = src._displayOriginY;
+
+        if (src.isStroked)
+        {
+            LineStyleCanvas(ctx, src);
+
+            ctx.beginPath();
+
+            ctx.moveTo(src.geom.x1 - dx, src.geom.y1 - dy);
+            ctx.lineTo(src.geom.x2 - dx, src.geom.y2 - dy);
+
+            ctx.stroke();
+        }
+
+        //  Restore the context saved in SetTransform
+        ctx.restore();
+    }
+};
+
+module.exports = LineCanvasRenderer;
+
+
+/***/ }),
+
+/***/ 31059:
+/***/ ((__unused_webpack_module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var GameObjectFactory = __webpack_require__(66642);
+var Line = __webpack_require__(9417);
+
+/**
+ * Creates a new Line Shape Game Object and adds it to the Scene.
+ *
+ * Note: This method will only be available if the Line Game Object has been built into Phaser.
+ *
+ * The Line Shape is a Game Object that can be added to a Scene, Group or Container. You can
+ * treat it like any other Game Object in your game, such as tweening it, scaling it, or enabling
+ * it for input or physics. It provides a quick and easy way for you to render this shape in your
+ * game without using a texture, while still taking advantage of being fully batched in WebGL.
+ *
+ * This shape supports only stroke colors and cannot be filled.
+ *
+ * A Line Shape allows you to draw a line between two points in your game. You can control the
+ * stroke color and thickness of the line. In WebGL only you can also specify a different
+ * thickness for the start and end of the line, allowing you to render lines that taper-off.
+ *
+ * If you need to draw multiple lines in a sequence you may wish to use the Polygon Shape instead.
+ *
+ * @method Phaser.GameObjects.GameObjectFactory#line
+ * @since 3.13.0
+ *
+ * @param {number} [x=0] - The horizontal position of this Game Object in the world.
+ * @param {number} [y=0] - The vertical position of this Game Object in the world.
+ * @param {number} [x1=0] - The horizontal position of the start of the line.
+ * @param {number} [y1=0] - The vertical position of the start of the line.
+ * @param {number} [x2=128] - The horizontal position of the end of the line.
+ * @param {number} [y2=0] - The vertical position of the end of the line.
+ * @param {number} [strokeColor] - The color the line will be drawn in, i.e. 0xff0000 for red.
+ * @param {number} [strokeAlpha] - The alpha the line will be drawn in. You can also set the alpha of the overall Shape using its `alpha` property.
+ *
+ * @return {Phaser.GameObjects.Line} The Game Object that was created.
+ */
+GameObjectFactory.register('line', function (x, y, x1, y1, x2, y2, strokeColor, strokeAlpha)
+{
+    return this.displayList.add(new Line(this.scene, x, y, x1, y1, x2, y2, strokeColor, strokeAlpha));
+});
+
+
+/***/ }),
+
+/***/ 15091:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var NOOP = __webpack_require__(45733);
+var renderWebGL = NOOP;
+var renderCanvas = NOOP;
+
+if (true)
+{
+    renderWebGL = __webpack_require__(38918);
+}
+
+if (true)
+{
+    renderCanvas = __webpack_require__(49506);
+}
+
+module.exports = {
+
+    renderWebGL: renderWebGL,
+    renderCanvas: renderCanvas
+
+};
+
+
+/***/ }),
+
+/***/ 38918:
+/***/ ((module, __unused_webpack_exports, __webpack_require__) => {
+
+/**
+ * @author       Richard Davey <rich@photonstorm.com>
+ * @copyright    2013-2023 Photon Storm Ltd.
+ * @license      {@link https://opensource.org/licenses/MIT|MIT License}
+ */
+
+var GetCalcMatrix = __webpack_require__(3142);
+var Utils = __webpack_require__(64564);
+
+/**
+ * Renders this Game Object with the WebGL Renderer to the given Camera.
+ * The object will not render if any of its renderFlags are set or it is being actively filtered out by the Camera.
+ * This method should not be called directly. It is a utility function of the Render module.
+ *
+ * @method Phaser.GameObjects.Line#renderWebGL
+ * @since 3.13.0
+ * @private
+ *
+ * @param {Phaser.Renderer.WebGL.WebGLRenderer} renderer - A reference to the current active WebGL renderer.
+ * @param {Phaser.GameObjects.Line} src - The Game Object being rendered in this call.
+ * @param {Phaser.Cameras.Scene2D.Camera} camera - The Camera that is rendering the Game Object.
+ * @param {Phaser.GameObjects.Components.TransformMatrix} parentMatrix - This transform matrix is defined if the game object is nested
+ */
+var LineWebGLRenderer = function (renderer, src, camera, parentMatrix)
+{
+    camera.addToRenderList(src);
+
+    var pipeline = renderer.pipelines.set(src.pipeline);
+
+    var result = GetCalcMatrix(src, camera, parentMatrix);
+
+    pipeline.calcMatrix.copyFrom(result.calc);
+
+    var dx = src._displayOriginX;
+    var dy = src._displayOriginY;
+    var alpha = camera.alpha * src.alpha;
+
+    renderer.pipelines.preBatch(src);
+
+    if (src.isStroked)
+    {
+        var strokeTint = pipeline.strokeTint;
+        var color = Utils.getTintAppendFloatAlpha(src.strokeColor, src.strokeAlpha * alpha);
+
+        strokeTint.TL = color;
+        strokeTint.TR = color;
+        strokeTint.BL = color;
+        strokeTint.BR = color;
+
+        var startWidth = src._startWidth;
+        var endWidth = src._endWidth;
+
+        pipeline.batchLine(
+            src.geom.x1 - dx,
+            src.geom.y1 - dy,
+            src.geom.x2 - dx,
+            src.geom.y2 - dy,
+            startWidth,
+            endWidth,
+            1,
+            0,
+            false,
+            result.sprite,
+            result.camera
+        );
+    }
+
+    renderer.pipelines.postBatch(src);
+};
+
+module.exports = LineWebGLRenderer;
+
+
+/***/ }),
+
 /***/ 41231:
 /***/ ((module, __unused_webpack_exports, __webpack_require__) => {
 
@@ -135900,7 +136290,7 @@ var Phaser = {
         GameObjectCreator: __webpack_require__(78757),
         GameObjectFactory: __webpack_require__(66642),
         UpdateList: __webpack_require__(66007),
-        Components: __webpack_require__(19506),
+        // Components: require('gameobjects/components'),
         BuildGameObject: __webpack_require__(90062),
         BuildGameObjectAnimation: __webpack_require__(38596),
         GameObject: __webpack_require__(38236),
@@ -135912,6 +136302,7 @@ var Phaser = {
         Text: __webpack_require__(77546),
         Group: __webpack_require__(84262),
         Rectangle: __webpack_require__(41231),
+        Line: __webpack_require__(9417),
         Factories: {
             Graphics: __webpack_require__(4268),
             Image: __webpack_require__(48950),
@@ -135921,6 +136312,7 @@ var Phaser = {
             Text: __webpack_require__(33979),
             Group: __webpack_require__(97058),
             Rectangle: __webpack_require__(98971),
+            Line: __webpack_require__(31059)
         },
         Creators: {
             Graphics: __webpack_require__(2923),

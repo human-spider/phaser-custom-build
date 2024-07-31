@@ -24,7 +24,7 @@ var Phaser = {
         GameObjectCreator: require('gameobjects/GameObjectCreator'),
         GameObjectFactory: require('gameobjects/GameObjectFactory'),
         UpdateList: require('gameobjects/UpdateList'),
-        Components: require('gameobjects/components'),
+        // Components: require('gameobjects/components'),
         BuildGameObject: require('gameobjects/BuildGameObject'),
         BuildGameObjectAnimation: require('gameobjects/BuildGameObjectAnimation'),
         GameObject: require('gameobjects/GameObject'),
@@ -36,6 +36,7 @@ var Phaser = {
         Text: require('gameobjects/text/Text'),
         Group: require('gameobjects/group/Group'),
         Rectangle: require('gameobjects/shape/rectangle/Rectangle'),
+        Line: require('gameobjects/shape/line/Line'),
         Factories: {
             Graphics: require('gameobjects/graphics/GraphicsFactory'),
             Image: require('gameobjects/image/ImageFactory'),
@@ -45,6 +46,7 @@ var Phaser = {
             Text: require('gameobjects/text/TextFactory'),
             Group: require('gameobjects/group/GroupFactory'),
             Rectangle: require('gameobjects/shape/rectangle/RectangleFactory'),
+            Line: require('gameobjects/shape/line/LineFactory')
         },
         Creators: {
             Graphics: require('gameobjects/graphics/GraphicsCreator'),
