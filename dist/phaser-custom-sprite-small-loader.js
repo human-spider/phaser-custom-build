@@ -135900,7 +135900,7 @@ var Phaser = {
         GameObjectCreator: __webpack_require__(78757),
         GameObjectFactory: __webpack_require__(66642),
         UpdateList: __webpack_require__(66007),
-        // Components: require('gameobjects/components'),
+        Components: __webpack_require__(19506),
         BuildGameObject: __webpack_require__(90062),
         BuildGameObjectAnimation: __webpack_require__(38596),
         GameObject: __webpack_require__(38236),

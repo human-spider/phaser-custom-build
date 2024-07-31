@@ -24,7 +24,7 @@ var Phaser = {
         GameObjectCreator: require('gameobjects/GameObjectCreator'),
         GameObjectFactory: require('gameobjects/GameObjectFactory'),
         UpdateList: require('gameobjects/UpdateList'),
-        // Components: require('gameobjects/components'),
+        Components: require('gameobjects/components'),
         BuildGameObject: require('gameobjects/BuildGameObject'),
         BuildGameObjectAnimation: require('gameobjects/BuildGameObjectAnimation'),
         GameObject: require('gameobjects/GameObject'),
